@@ -5,4 +5,3 @@ time,feature,component,id,parameter,value
 3,topology,link,31,status,0
 4,system,-,-,reload,1
 4,topology,link,32,status,0
-7,system,-,-,backend,interpss

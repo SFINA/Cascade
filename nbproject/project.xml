@@ -10,7 +10,7 @@
             <test-roots/>
         </data>
         <libraries xmlns="http://www.netbeans.org/ns/ant-project-libraries/1">
-            <definitions>../../libraries/nblibraries.properties</definitions>
+            <definitions>../SFINA/libraries/nblibraries.properties</definitions>
         </libraries>
     </configuration>
 </project>

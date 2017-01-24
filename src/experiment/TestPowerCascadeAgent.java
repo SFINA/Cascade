@@ -19,8 +19,10 @@ package experiment;
 
 import replayer.BenchmarkLogReplayer;
 import agent.PowerCascadeAgent;
+import core.SimpleTimeSteppingAgent;
 import java.io.File;
 import org.apache.log4j.Logger;
+import power.backend.InterpssFlowDomainAgent;
 import protopeer.Experiment;
 import protopeer.Peer;
 import protopeer.PeerFactory;
@@ -36,7 +38,6 @@ public class TestPowerCascadeAgent extends SimulatedExperiment{
     private static final Logger logger = Logger.getLogger(TestPowerCascadeAgent.class);
     
     private final static String expSeqNum="01";
-    private final static String peersLogDirectory="peerlets-log/";
     private static String experimentID="experiment-"+expSeqNum;
     
     //Simulation Parameters
@@ -51,9 +52,7 @@ public class TestPowerCascadeAgent extends SimulatedExperiment{
         Experiment.initEnvironment();
         final TestPowerCascadeAgent test = new TestPowerCascadeAgent();
         test.init();
-        final File folder = new File(peersLogDirectory+experimentID);
-        clearExperimentFile(folder);
-        folder.mkdir();
+
         PeerFactory peerFactory=new PeerFactory() {
             public Peer createPeer(int peerIndex, Experiment experiment) {
                 Peer newPeer = new Peer(peerIndex);
@@ -62,6 +61,8 @@ public class TestPowerCascadeAgent extends SimulatedExperiment{
                         Time.inMilliseconds(bootstrapTime),
                         Time.inMilliseconds(runTime),
                         relCapacityChange));
+                newPeer.addPeerlet(new InterpssFlowDomainAgent());
+                newPeer.addPeerlet(new SimpleTimeSteppingAgent());
                 return newPeer;
             }
         };
@@ -72,17 +73,5 @@ public class TestPowerCascadeAgent extends SimulatedExperiment{
         BenchmarkLogReplayer replayer=new BenchmarkLogReplayer(expSeqNum, 0, 1000);
     }
     
-    public final static void clearExperimentFile(File experiment){
-        File[] files = experiment.listFiles();
-        if(files!=null) { //some JVMs return null for empty dirs
-            for(File f: files) {
-                if(f.isDirectory()) {
-                    clearExperimentFile(f);
-                } else {
-                    f.delete();
-                }
-            }
-        }
-        experiment.delete();
-    }
+
 }

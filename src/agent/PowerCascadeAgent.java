@@ -17,7 +17,6 @@
  */
 package agent;
 
-import agent.CascadeAgent;
 import event.Event;
 import event.EventType;
 import event.NetworkComponent;
@@ -105,7 +104,7 @@ public class PowerCascadeAgent extends CascadeAgent {
             }
         }
         if (capacityNotSet) {
-            callBackend(getFlowNetwork());
+            getFlowDomainAgent().flowAnalysis(getFlowNetwork());
             for (Link link : getFlowNetwork().getLinks()) {
                 link.setCapacity(toleranceParameter * link.getFlow());
             }
@@ -132,91 +131,77 @@ public class PowerCascadeAgent extends CascadeAgent {
     @Override
     public boolean flowConvergenceStrategy(FlowNetwork flowNetwork) {
         boolean converged = false;
-        switch (getDomain()) {
-            case POWER:
-                // blackout if isolated node
-                if (flowNetwork.getNodes().size() == 1) {
-                    logger.info("....not enough nodes");
-                    return converged;
+
+        // blackout if isolated node
+        if (flowNetwork.getNodes().size() == 1) {
+            logger.info("....not enough nodes");
+            return converged;
+        }
+
+        // or for example to get all generators and the slack bus if it exists
+        ArrayList<Node> generators = new ArrayList();
+        Node slack = null;
+        for (Node node : flowNetwork.getNodes()) {
+            if (node.getProperty(PowerNodeState.TYPE).equals(PowerNodeType.GENERATOR)) {
+                generators.add(node);
+            }
+            if (node.getProperty(PowerNodeState.TYPE).equals(PowerNodeType.SLACK_BUS)) {
+                slack = node;
+            }
+        }
+
+        // To sort generators by max power output
+        Collections.sort(generators, new Comparator<Node>() {
+            public int compare(Node node1, Node node2) {
+                return Double.compare((Double) node1.getProperty(PowerNodeState.POWER_MAX_REAL), (Double) node2.getProperty(PowerNodeState.POWER_MAX_REAL));
+            }
+        }.reversed());
+
+        // check if there's a slack in the island, if not make the generator with biggest power output to a slack bus
+        if (slack == null) {
+            if (generators.size() == 0) {
+                logger.info("....no generator");
+                return converged; // blackout if no generator in island
+            } else {
+                slack = generators.get(0);
+                // this is how one changes node/link properties
+                slack.replacePropertyElement(PowerNodeState.TYPE, PowerNodeType.SLACK_BUS);
+                generators.remove(0);
+            }
+        }
+
+        boolean limViolation = true;
+        while (limViolation) {
+            converged = getFlowDomainAgent().flowAnalysis(flowNetwork);
+            logger.info("....converged " + converged);
+            if (converged) {
+                limViolation = GenerationBalancing(flowNetwork, slack);
+
+                // Without the following line big cases (like polish) even DC doesn't converge..
+                PowerFlowType flowType = (PowerFlowType)getFlowDomainAgent().getDomainParameters().get(PowerBackendParameter.FLOW_TYPE);
+                if (flowType.equals(PowerFlowType.DC)) {
+                    limViolation = false;
                 }
 
-                // or for example to get all generators and the slack bus if it exists
-                ArrayList<Node> generators = new ArrayList();
-                Node slack = null;
-                for (Node node : flowNetwork.getNodes()) {
-                    if (node.getProperty(PowerNodeState.TYPE).equals(PowerNodeType.GENERATOR)) {
-                        generators.add(node);
-                    }
-                    if (node.getProperty(PowerNodeState.TYPE).equals(PowerNodeType.SLACK_BUS)) {
-                        slack = node;
-                    }
-                }
-
-                // To sort generators by max power output
-                Collections.sort(generators, new Comparator<Node>() {
-                    public int compare(Node node1, Node node2) {
-                        return Double.compare((Double) node1.getProperty(PowerNodeState.POWER_MAX_REAL), (Double) node2.getProperty(PowerNodeState.POWER_MAX_REAL));
-                    }
-                }.reversed());
-
-                // check if there's a slack in the island, if not make the generator with biggest power output to a slack bus
-                if (slack == null) {
-                    if (generators.size() == 0) {
-                        logger.info("....no generator");
-                        return converged; // blackout if no generator in island
-                    } else {
+                if (limViolation) {
+                    converged = false;
+                    if (generators.size() > 0) { // make next bus a slack
                         slack = generators.get(0);
-                        // this is how one changes node/link properties
                         slack.replacePropertyElement(PowerNodeState.TYPE, PowerNodeType.SLACK_BUS);
                         generators.remove(0);
-                    }
-                }
-
-                boolean limViolation = true;
-                while (limViolation) {
-                    converged = callBackend(flowNetwork);
-                    logger.info("....converged " + converged);
-                    if (converged) {
-                        limViolation = GenerationBalancing(flowNetwork, slack);
-
-                        // Without the following line big cases (like polish) even DC doesn't converge..
-                        PowerFlowType flowType = (PowerFlowType) getBackendParameters().get(PowerBackendParameter.FLOW_TYPE);
-                        if (flowType.equals(PowerFlowType.DC)) {
-                            limViolation = false;
-                        }
-
-                        if (limViolation) {
-                            converged = false;
-                            if (generators.size() > 0) { // make next bus a slack
-                                slack = generators.get(0);
-                                slack.replacePropertyElement(PowerNodeState.TYPE, PowerNodeType.SLACK_BUS);
-                                generators.remove(0);
-                            } else {
-                                logger.info("....no more generators");
-                                return false; // all generator limits were hit -> blackout
-                            }
-                        }
                     } else {
-                        converged = loadShedding(flowNetwork);
-                        if (!converged) {
-                            return false; // blackout if no convergence after load shedding
-                        }
+                        logger.info("....no more generators");
+                        return false; // all generator limits were hit -> blackout
                     }
                 }
-
-                break;
-            case GAS:
-                logger.debug("This domain is not supported at this moment");
-                break;
-            case WATER:
-                logger.debug("This domain is not supported at this moment");
-                break;
-            case TRANSPORTATION:
-                logger.debug("This domain is not supported at this moment");
-                break;
-            default:
-                logger.debug("This domain is not supported at this moment");
+            } else {
+                converged = loadShedding(flowNetwork);
+                if (!converged) {
+                    return false; // blackout if no convergence after load shedding
+                }
+            }
         }
+
         return converged;
     }
 
@@ -250,7 +235,7 @@ public class PowerCascadeAgent extends CascadeAgent {
                 node.replacePropertyElement(PowerNodeState.POWER_DEMAND_REAL, (Double) node.getProperty(PowerNodeState.POWER_DEMAND_REAL) * (1.0 - loadReductionFactor));
                 node.replacePropertyElement(PowerNodeState.POWER_DEMAND_REACTIVE, (Double) node.getProperty(PowerNodeState.POWER_DEMAND_REACTIVE) * (1.0 - loadReductionFactor));
             }
-            converged = callBackend(flowNetwork);
+            converged = getFlowDomainAgent().flowAnalysis(flowNetwork);
             loadIter++;
         }
         return converged;
@@ -303,14 +288,14 @@ public class PowerCascadeAgent extends CascadeAgent {
      * @return the toleranceParameter
      */
     public double getToleranceParameter() {
-        return (Double) this.getBackendParameters().get(PowerBackendParameter.TOLERANCE_PARAMETER);
+        return (Double) this.getFlowDomainAgent().getDomainParameters().get(PowerBackendParameter.TOLERANCE_PARAMETER);
     }
 
     /**
      * @param toleranceParameter the toleranceParameter to set
      */
     public void setToleranceParameter(double toleranceParameter) {
-        this.getBackendParameters().put(PowerBackendParameter.TOLERANCE_PARAMETER, toleranceParameter);
+        this.getFlowDomainAgent().getDomainParameters().put(PowerBackendParameter.TOLERANCE_PARAMETER, toleranceParameter);
     }
 
     // *************************** Measurements ********************************

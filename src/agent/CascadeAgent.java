@@ -17,11 +17,9 @@
  */
 package agent;
 
-import agent.BenchmarkSimulationAgent;
 import event.Event;
 import event.EventType;
 import event.NetworkComponent;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import network.FlowNetwork;
@@ -57,50 +55,22 @@ public class CascadeAgent extends BenchmarkSimulationAgent{
      */
     @Override
     public void runFlowAnalysis(){
-        temporalIslandStatus.put(getSimulationTime(), new LinkedHashMap());
-        
-        // This list keeps track of islands where overloads happened
-        ArrayList<FlowNetwork> islandBuffer = new ArrayList<>();
-        islandBuffer.add(getFlowNetwork());
-        
-        while(!islandBuffer.isEmpty()){
-            logger.info("----> Iteration " + (getIteration()) + " <----");
-            
-            // Extract islands from the networks where link/node overloads happened
-            ArrayList<FlowNetwork> currentIterationIslands = new ArrayList<>();
-            for(FlowNetwork net : islandBuffer){
-                for(FlowNetwork subnet : net.computeIslands())
-                    currentIterationIslands.add(subnet);
-            }
-            islandBuffer.clear();
-            
-            // Go through all disconnected components (i.e. islands) of current iteration and perform flow analysis
-            for(FlowNetwork currentIsland : currentIterationIslands){
-                logger.info("treating island with " + currentIsland.getNodes().size() + " nodes");
-                boolean converged = flowConvergenceStrategy(currentIsland); 
-                if(converged){
-                    mitigateOverload(currentIsland);
-                    boolean linkOverloaded = linkOverload(currentIsland);
-                    boolean nodeOverloaded = nodeOverload(currentIsland);
-                    if(linkOverloaded || nodeOverloaded){
-                        islandBuffer.add(currentIsland);
-                    }
-                    else
-                        temporalIslandStatus.get(getSimulationTime()).put(currentIsland, true);
-                }
-                else{
-                    updateNonConvergedIsland(currentIsland);
-                    temporalIslandStatus.get(getSimulationTime()).put(currentIsland, false);
+        for(FlowNetwork currentIsland : getFlowNetwork().computeIslands()){
+            logger.info("treating island with " + currentIsland.getNodes().size() + " nodes");
+            boolean converged = flowConvergenceStrategy(currentIsland); 
+            if(converged){
+                mitigateOverload(currentIsland);
+                boolean linkOverloaded = linkOverload(currentIsland);
+                boolean nodeOverloaded = nodeOverload(currentIsland);
+                if(!linkOverloaded || !nodeOverloaded){
+                    logger.info("Island converged: " + currentIsland.getNodes().size() + " nodes :)");
                 }
             }
-            
-            // Output data at current iteration and go to next one
-            nextIteration();
-   
-            // deactivate all overloaded nodes/links
-            this.executeAllEvents();
+            else{
+                updateNonConvergedIsland(currentIsland);
+                logger.info("Island didn't converged: " + currentIsland.getNodes().size() + " nodes :(");
+            }
         }
-        logFinalIslands();
     }
     
     
@@ -111,7 +81,7 @@ public class CascadeAgent extends BenchmarkSimulationAgent{
      * @return true if flow analysis finally converged, else false
      */ 
     public boolean flowConvergenceStrategy(FlowNetwork flowNetwork){
-        return callBackend(flowNetwork);
+        return getFlowDomainAgent().flowAnalysis(flowNetwork);
     }
     
     /**
@@ -131,7 +101,7 @@ public class CascadeAgent extends BenchmarkSimulationAgent{
     public boolean linkOverload(FlowNetwork flowNetwork){
         boolean overloaded = false;
         for (Link link : flowNetwork.getLinks()){
-            if(link.isActivated() && link.getFlow() > link.getCapacity()){
+            if(link.isActivated() && Math.abs(link.getFlow()) > Math.abs(link.getCapacity())){
                 logger.info("..violating link " + link.getIndex() + " limit: " + link.getFlow() + " > " + link.getCapacity());
                 updateOverloadLink(link);
                 overloaded = true;
@@ -158,7 +128,7 @@ public class CascadeAgent extends BenchmarkSimulationAgent{
     public boolean nodeOverload(FlowNetwork flowNetwork){
         boolean overloaded = false;
         for (Node node : flowNetwork.getNodes()){
-            if(node.isActivated() && node.getFlow() > node.getCapacity()){
+            if(node.isActivated() && Math.abs(node.getFlow()) > Math.abs(node.getCapacity())){
                 logger.info("..violating node " + node.getIndex() + " limit: " + node.getFlow() + " > " + node.getCapacity());
                 updateOverloadNode(node);
                 // Uncomment if node overload should be included
@@ -184,22 +154,4 @@ public class CascadeAgent extends BenchmarkSimulationAgent{
         logger.info("..not changing anything in non-converged part of the network.");
     }
     
-    /**
-     * Prints final islands in each time step to console
-     */
-    private void logFinalIslands(){
-        String log = "--------------> " + temporalIslandStatus.get(getSimulationTime()).size() + " final island(s):\n";
-        String nodesInIsland;
-        for (FlowNetwork net : temporalIslandStatus.get(getSimulationTime()).keySet()){
-            nodesInIsland = "";
-            for (Node node : net.getNodes())
-                nodesInIsland += node.getIndex() + ", ";
-            log += "    - " + net.getNodes().size() + " Node(s) (" + nodesInIsland + ")";
-            if(temporalIslandStatus.get(getSimulationTime()).get(net))
-                log += " -> Converged :)\n";
-            if(!temporalIslandStatus.get(getSimulationTime()).get(net))
-                log += " -> Blackout\n";
-        }
-        logger.info(log);
-    }    
 }

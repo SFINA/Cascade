@@ -18,7 +18,7 @@
 package experiment;
 
 import agent.CascadeAgent;
-import core.SimpleTimeSteppingAgent;
+import core.TimeSteppingAgent;
 import replayer.BenchmarkLogReplayer;
 import org.apache.log4j.Logger;
 import power.backend.InterpssFlowDomainAgent;
@@ -54,11 +54,11 @@ public class TestCascadeAgent extends SimulatedExperiment{
             public Peer createPeer(int peerIndex, Experiment experiment) {
                 Peer newPeer = new Peer(peerIndex);
                 newPeer.addPeerlet(new CascadeAgent(
-                        experimentID, 
+                        experimentID));
+                newPeer.addPeerlet(new InterpssFlowDomainAgent());
+                newPeer.addPeerlet(new TimeSteppingAgent(
                         Time.inMilliseconds(bootstrapTime),
                         Time.inMilliseconds(runTime)));
-                newPeer.addPeerlet(new InterpssFlowDomainAgent());
-                newPeer.addPeerlet(new SimpleTimeSteppingAgent());
                 return newPeer;
             }
         };
@@ -66,7 +66,7 @@ public class TestCascadeAgent extends SimulatedExperiment{
         test.startPeers(0,N);
         //run the simulation
         test.runSimulation(Time.inSeconds(runDuration));
-        BenchmarkLogReplayer replayer=new BenchmarkLogReplayer(expSeqNum, 0, 1000);
+        BenchmarkLogReplayer replayer=new BenchmarkLogReplayer(expSeqNum, 0, 1000, true);
     }
     
 

@@ -19,8 +19,10 @@ package experiment;
 
 import replayer.BenchmarkLogReplayer;
 import agent.PowerCascadeAgent;
+import core.TimeSteppingAgent;
 import java.io.File;
 import org.apache.log4j.Logger;
+import power.backend.InterpssFlowDomainAgent;
 import protopeer.Experiment;
 import protopeer.Peer;
 import protopeer.PeerFactory;
@@ -65,9 +67,11 @@ public class LinkCapacityReductionExperiment extends SimulatedExperiment{
 //                }
                 newPeer.addPeerlet(new PowerCascadeAgent(
                         experimentID, 
-                        Time.inMilliseconds(bootstrapTime),
-                        Time.inMilliseconds(runTime),
                         relCapacityChangePerStep));
+                newPeer.addPeerlet(new InterpssFlowDomainAgent());
+                newPeer.addPeerlet(new TimeSteppingAgent(
+                        Time.inMilliseconds(bootstrapTime),
+                        Time.inMilliseconds(runTime)));
                 return newPeer;
             }
         };
@@ -77,7 +81,7 @@ public class LinkCapacityReductionExperiment extends SimulatedExperiment{
         test.runSimulation(Time.inSeconds(runDuration));
         
         // Get and display results
-        BenchmarkLogReplayer replayer=new BenchmarkLogReplayer(expSeqNum, 0, 1000);
+        BenchmarkLogReplayer replayer=new BenchmarkLogReplayer(expSeqNum, 0, 1000, true);
     }
 
     public final static void clearExperimentFile(File experiment){

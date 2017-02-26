@@ -20,12 +20,10 @@ package agent;
 import event.Event;
 import event.EventType;
 import event.NetworkComponent;
-import utilities.Metrics;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import network.FlowNetwork;
 import network.Link;
 import network.LinkState;
@@ -36,10 +34,7 @@ import power.input.PowerNodeType;
 import power.backend.PowerBackendParameter;
 import power.input.PowerLinkState;
 import power.input.PowerNodeState;
-import protopeer.measurement.MeasurementFileDumper;
 import protopeer.measurement.MeasurementLog;
-import protopeer.measurement.MeasurementLoggerListener;
-import protopeer.util.quantities.Time;
 
 /**
  * Strategy to make power load flow analysis converge. Balancing generation
@@ -53,12 +48,8 @@ public class PowerCascadeAgent extends CascadeAgent {
     private Double relRateChangePerEpoch;
 
     public PowerCascadeAgent(String experimentID,
-            Time bootstrapTime,
-            Time runTime,
             Double relRateChangePerEpoch) {
-        super(experimentID,
-                bootstrapTime,
-                runTime);
+        super(experimentID);
         this.relRateChangePerEpoch = relRateChangePerEpoch;
     }
 
@@ -84,7 +75,8 @@ public class PowerCascadeAgent extends CascadeAgent {
         this.calculateActivationStatus();
         this.calculateFlow();
         this.calculateUtilization();
-        this.calculateTotalLines();
+        this.calculateOverloadStatus();
+        this.calculateTotalNumber();
         this.saveSimuTime();
         this.saveIterationNumber();
     }
@@ -298,14 +290,17 @@ public class PowerCascadeAgent extends CascadeAgent {
         this.getFlowDomainAgent().getDomainParameters().put(PowerBackendParameter.TOLERANCE_PARAMETER, toleranceParameter);
     }
 
-    // *************************** Measurements ********************************
+    // *************************** Measurements ******************************** /
+    // at every iteration
+    // ************************************************************************* /
+    
     private void calculateInitialLoad() {
         for (Node node : this.getFlowNetwork().getNodes()) {
             double initialLoad = 0.0;
             if (node.isActivated() && node.isConnected()) {
                 initialLoad = (Double) node.getProperty(PowerNodeState.POWER_DEMAND_REAL);
             }
-            HashMap<Metrics, Object> metrics = this.getTemporalNodeMetrics().get(this.getSimulationTime()).get(node.getIndex());
+            HashMap<Metrics, Object> metrics = this.getTemporalNodeMetrics().get(this.getSimulationTime()).get(this.getIteration()).get(node.getIndex());
             metrics.put(Metrics.NODE_INIT_LOADING, initialLoad);
         }
     }
@@ -316,7 +311,7 @@ public class PowerCascadeAgent extends CascadeAgent {
             if (node.isActivated() && node.isConnected()) {
                 finalLoad = (Double) node.getProperty(PowerNodeState.POWER_DEMAND_REAL);
             }
-            HashMap<Metrics, Object> metrics = this.getTemporalNodeMetrics().get(this.getSimulationTime()).get(node.getIndex());
+            HashMap<Metrics, Object> metrics = this.getTemporalNodeMetrics().get(this.getSimulationTime()).get(this.getIteration()).get(node.getIndex());
             metrics.put(Metrics.NODE_FINAL_LOADING, finalLoad);
         }
     }
@@ -330,45 +325,28 @@ public class PowerCascadeAgent extends CascadeAgent {
                 nrIsolatedNodes++;
             }
         }
-
-        this.getTemporalSystemMetrics().get(this.getSimulationTime()).put(Metrics.ISLANDS, nrIslands);
-        this.getTemporalSystemMetrics().get(this.getSimulationTime()).put(Metrics.ISOLATED_NODES, nrIsolatedNodes);
+        this.getTemporalSystemMetrics().get(this.getSimulationTime()).get(this.getIteration()).put(Metrics.ISLANDS, nrIslands);
+        this.getTemporalSystemMetrics().get(this.getSimulationTime()).get(this.getIteration()).put(Metrics.ISOLATED_NODES, nrIsolatedNodes);
     }
-
-    /**
-     * Scheduling the measurements for the simulation agent
-     */
+    
+    // *************************** Measurements ******************************** /
+    // logging at end of simulation step
+    // ************************************************************************* / 
+    
     @Override
-    public void scheduleMeasurements() {
-        setMeasurementDumper(new MeasurementFileDumper(getPeersLogDirectory() + this.getExperimentID() + "/peer-" + getPeer().getIndexNumber()));
-        getPeer().getMeasurementLogger().addMeasurementLoggerListener(new MeasurementLoggerListener() {
-            public void measurementEpochEnded(MeasurementLog log, int epochNumber) {
-                int simulationTime = getSimulationTime();
-
-                if (simulationTime >= 1) {
-                    log.logTagSet(simulationTime, new HashSet(getFlowNetwork().getLinks()), simulationTime);
-                    for (Link link : getFlowNetwork().getLinks()) {
-                        HashMap<Metrics, Object> linkMetrics = getTemporalLinkMetrics().get(simulationTime).get(link.getIndex());
-                        log.log(simulationTime, Metrics.LINE_UTILIZATION, ((Double) linkMetrics.get(Metrics.LINE_UTILIZATION)));
-                        log.log(simulationTime, Metrics.LINE_FLOW, ((Double) linkMetrics.get(Metrics.LINE_FLOW)));
-                        log.log(simulationTime, Metrics.ACTIVATED_LINES, ((Double) linkMetrics.get(Metrics.ACTIVATED_LINES)));
-                        log.log(simulationTime, Metrics.TOTAL_LINES, ((Double) linkMetrics.get(Metrics.TOTAL_LINES)));
-                    }
-                    log.logTagSet(simulationTime, new HashSet(getFlowNetwork().getNodes()), simulationTime);
-                    for (Node node : getFlowNetwork().getNodes()) {
-                        HashMap<Metrics, Object> nodeMetrics = getTemporalNodeMetrics().get(simulationTime).get(node.getIndex());
-                        log.log(simulationTime, Metrics.NODE_INIT_LOADING, ((Double) nodeMetrics.get(Metrics.NODE_INIT_LOADING)));
-                        log.log(simulationTime, Metrics.NODE_FINAL_LOADING, ((Double) nodeMetrics.get(Metrics.NODE_FINAL_LOADING)));
-                    }
-                    HashMap<Metrics, Object> sysMetrics = getTemporalSystemMetrics().get(simulationTime);
-                    log.log(simulationTime, Metrics.TOT_SIMU_TIME, ((Double) sysMetrics.get(Metrics.TOT_SIMU_TIME)));
-                    log.log(simulationTime, Metrics.NEEDED_ITERATIONS, ((Integer) sysMetrics.get(Metrics.NEEDED_ITERATIONS)));
-                    log.log(simulationTime, Metrics.ISLANDS, ((Integer) sysMetrics.get(Metrics.ISLANDS)));
-                    log.log(simulationTime, Metrics.ISOLATED_NODES, ((Integer) sysMetrics.get(Metrics.ISOLATED_NODES)));
-                }
-                getMeasurementDumper().measurementEpochEnded(log, simulationTime);
-                log.shrink(simulationTime, simulationTime + 1);
-            }
-        });
+    public void logLinkMetrics(MeasurementLog log, int simulationTime, Integer iteration, HashMap<Metrics,Object> linkMetrics){
+        // nothing to log here
+    }
+    
+    @Override
+    public void logNodeMetrics(MeasurementLog log, int simulationTime, Integer iteration, HashMap<Metrics,Object> nodeMetrics){
+        log.log(simulationTime, iteration, Metrics.NODE_INIT_LOADING, (Double) nodeMetrics.get(Metrics.NODE_INIT_LOADING));
+        log.log(simulationTime, iteration, Metrics.NODE_FINAL_LOADING, (Double) nodeMetrics.get(Metrics.NODE_FINAL_LOADING));
+    }
+    
+    @Override
+    public void logSystemMetrics(MeasurementLog log, int simulationTime, Integer iteration, HashMap<Metrics,Object> sysMetrics) {
+        log.log(simulationTime, iteration, Metrics.ISLANDS, ((Integer) sysMetrics.get(Metrics.ISLANDS)));
+        log.log(simulationTime, iteration, Metrics.ISOLATED_NODES, ((Integer) sysMetrics.get(Metrics.ISOLATED_NODES)));
     }
 }

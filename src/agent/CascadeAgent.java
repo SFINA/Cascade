@@ -27,7 +27,6 @@ import network.Link;
 import network.LinkState;
 import network.Node;
 import org.apache.log4j.Logger;
-import protopeer.util.quantities.Time;
 
 /**
  * Cascade if link limits violated. Domain independent.
@@ -38,12 +37,8 @@ public class CascadeAgent extends BenchmarkSimulationAgent{
     private static final Logger logger = Logger.getLogger(CascadeAgent.class);
     private HashMap<Integer,LinkedHashMap<FlowNetwork, Boolean>> temporalIslandStatus = new HashMap();
     
-    public CascadeAgent(String experimentID,
-            Time bootstrapTime, 
-            Time runTime){
-            super(experimentID,
-                bootstrapTime,
-                runTime);
+    public CascadeAgent(String experimentID){
+            super(experimentID);
     }
     
     /**

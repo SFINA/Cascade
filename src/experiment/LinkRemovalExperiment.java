@@ -18,6 +18,7 @@
 package experiment;
 
 import agent.PowerCascadeAgent;
+import core.TimeSteppingAgent;
 import replayer.BenchmarkLogReplayer;
 import java.io.File;
 import java.io.FileWriter;
@@ -26,6 +27,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import org.apache.log4j.Logger;
+import power.backend.InterpssFlowDomainAgent;
 import protopeer.Experiment;
 import protopeer.Peer;
 import protopeer.PeerFactory;
@@ -67,7 +69,7 @@ public class LinkRemovalExperiment extends SimulatedExperiment{
         //createLinkAttackEvents();
         
         run();
-        BenchmarkLogReplayer replayer=new BenchmarkLogReplayer(expSeqNum, 0, 1000);
+        BenchmarkLogReplayer replayer=new BenchmarkLogReplayer(expSeqNum, 0, 1000, true);
     }
     
     public static void run() {
@@ -87,9 +89,11 @@ public class LinkRemovalExperiment extends SimulatedExperiment{
 //                }
                 newPeer.addPeerlet(new PowerCascadeAgent(
                         experimentID, 
-                        Time.inMilliseconds(bootstrapTime),
-                        Time.inMilliseconds(runTime),
                         relCapacityChange));
+                newPeer.addPeerlet(new InterpssFlowDomainAgent());
+                newPeer.addPeerlet(new TimeSteppingAgent(
+                        Time.inMilliseconds(bootstrapTime),
+                        Time.inMilliseconds(runTime)));
                 return newPeer;
             }
         };

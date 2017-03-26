@@ -19,7 +19,7 @@ package experiment;
 
 import replayer.BenchmarkLogReplayer;
 import agent.PowerCascadeAgent;
-import core.TimeSteppingAgent;
+import agents.time.TimeSteppingAgent;
 import java.io.File;
 import org.apache.log4j.Logger;
 import power.backend.InterpssFlowDomainAgent;

@@ -18,7 +18,7 @@
 package experiment;
 
 import agent.CascadeAgent;
-import core.TimeSteppingAgent;
+import agents.time.TimeSteppingAgent;
 import replayer.BenchmarkLogReplayer;
 import org.apache.log4j.Logger;
 import power.backend.InterpssFlowDomainAgent;

@@ -18,7 +18,7 @@
 package experiment;
 
 import agent.PowerCascadeAgent;
-import core.TimeSteppingAgent;
+import agents.time.TimeSteppingAgent;
 import replayer.BenchmarkLogReplayer;
 import java.io.File;
 import java.io.FileWriter;

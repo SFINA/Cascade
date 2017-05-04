@@ -45,7 +45,8 @@ public class TestCascadeAgent extends SimulatedExperiment{
     private final static int runDuration=6;
     private final static int N=1;
     
-    public static void main(String[] args) {      
+    public static void main(String[] args) {   
+        
         Experiment.initEnvironment();
         final TestPowerCascadeAgent test = new TestPowerCascadeAgent();
         test.init();

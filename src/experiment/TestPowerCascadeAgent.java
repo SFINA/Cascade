@@ -23,6 +23,7 @@ import agents.time.TimeSteppingAgent;
 import java.io.File;
 import org.apache.log4j.Logger;
 import power.backend.InterpssFlowDomainAgent;
+import power.backend.MatpowerFlowDomainAgent;
 import protopeer.Experiment;
 import protopeer.Peer;
 import protopeer.PeerFactory;
@@ -37,13 +38,13 @@ public class TestPowerCascadeAgent extends SimulatedExperiment{
     
     private static final Logger logger = Logger.getLogger(TestPowerCascadeAgent.class);
     
-    private final static String expSeqNum="01";
+    private final static String expSeqNum="02";
     private static String experimentID="experiment-"+expSeqNum;
     
     //Simulation Parameters
     private final static int bootstrapTime=2000;
     private final static int runTime=1000;
-    private final static int runDuration=6;
+    private final static int runDuration=5+1;
     private final static int N=1;
     
     public static void main(String[] args) {
@@ -59,7 +60,7 @@ public class TestPowerCascadeAgent extends SimulatedExperiment{
                 newPeer.addPeerlet(new PowerCascadeAgent(
                         experimentID,
                         relCapacityChange));
-                newPeer.addPeerlet(new InterpssFlowDomainAgent());
+                newPeer.addPeerlet(new MatpowerFlowDomainAgent());
                 newPeer.addPeerlet(new TimeSteppingAgent(
                         Time.inMilliseconds(bootstrapTime),
                         Time.inMilliseconds(runTime)));

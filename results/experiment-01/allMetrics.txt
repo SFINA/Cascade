@@ -1,0 +1,10 @@
+*** RESULTS PER TIME STEP AND ITERATION FOR EXPERIMENT experiment-01/ ***
+ TIME STEP ITERATION    AVG links failed       AVG link flowAVG link utilization      Simu Time [ms]        # iterations Node pow Loss epoch Node Pow Loss total           # islands    # isolated nodes
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+         1     total                0.00                8.75                0.24                 549                   1                 NaN                 NaN                 NaN                 NaN
+                   1                0.00                8.75                0.24                 549                   -                 NaN                 NaN                 NaN                 NaN
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+         2     total                0.05                9.69                0.28                 183                   2                 NaN                 NaN                 NaN                 NaN
+                   1                0.02                9.15                0.27                 165                   -                 NaN                 NaN                 NaN                 NaN
+                   2                0.05                9.69                0.28                  18                   -                 NaN                 NaN                 NaN                 NaN
+

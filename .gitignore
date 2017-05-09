@@ -8,3 +8,4 @@ _DS_Store
 **/peerlets-log/*/peer-*
 **/output/**/*.txt
 /dist/
+/build/

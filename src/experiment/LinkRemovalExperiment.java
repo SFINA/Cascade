@@ -78,9 +78,7 @@ public class LinkRemovalExperiment extends SimulatedExperiment{
         Experiment.initEnvironment();
         final LinkRemovalExperiment test = new LinkRemovalExperiment();
         test.init();
-        final File folder = new File(peersLogDirectory+experimentID);
-        clearExperimentFile(folder);
-        folder.mkdir();
+        
         PeerFactory peerFactory=new PeerFactory() {
             public Peer createPeer(int peerIndex, Experiment experiment) {
                 Peer newPeer = new Peer(peerIndex);
@@ -129,17 +127,4 @@ public class LinkRemovalExperiment extends SimulatedExperiment{
         
     }
     
-    public final static void clearExperimentFile(File experiment){
-        File[] files = experiment.listFiles();
-        if(files!=null) { //some JVMs return null for empty dirs
-            for(File f: files) {
-                if(f.isDirectory()) {
-                    clearExperimentFile(f);
-                } else {
-                    f.delete();
-                }
-            }
-        }
-        experiment.delete();
-    }
 }

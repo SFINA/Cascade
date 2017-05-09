@@ -55,9 +55,6 @@ public class LinkCapacityReductionExperiment extends SimulatedExperiment{
         Experiment.initEnvironment();
         final LinkCapacityReductionExperiment test = new LinkCapacityReductionExperiment();
         test.init();
-        final File folder = new File(peersLogDirectory+experimentID);
-        clearExperimentFile(folder);
-        folder.mkdir();
    
         PeerFactory peerFactory=new PeerFactory() {
             public Peer createPeer(int peerIndex, Experiment experiment) {
@@ -84,17 +81,4 @@ public class LinkCapacityReductionExperiment extends SimulatedExperiment{
         BenchmarkLogReplayer replayer=new BenchmarkLogReplayer(expSeqNum, 0, 1000, true);
     }
 
-    public final static void clearExperimentFile(File experiment){
-        File[] files = experiment.listFiles();
-        if(files!=null) { //some JVMs return null for empty dirs
-            for(File f: files) {
-                if(f.isDirectory()) {
-                    clearExperimentFile(f);
-                } else {
-                    f.delete();
-                }
-            }
-        }
-        experiment.delete();
-    }
 }

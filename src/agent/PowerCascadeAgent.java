@@ -183,6 +183,7 @@ public class PowerCascadeAgent extends CascadeAgent {
                 if (limViolation) {
                     converged = false;
                     if (generators.size() > 0) { // make next bus a slack
+                        slack.replacePropertyElement(PowerNodeState.TYPE, PowerNodeType.GENERATOR);
                         slack = generators.get(0);
                         slack.replacePropertyElement(PowerNodeState.TYPE, PowerNodeType.SLACK_BUS);
                         logger.info("....Slack bus updated to: " + slack.getIndex());
@@ -219,7 +220,6 @@ public class PowerCascadeAgent extends CascadeAgent {
             slack.replacePropertyElement(PowerNodeState.POWER_GENERATION_REAL, slack.getProperty(PowerNodeState.POWER_MIN_REAL));
             limViolation = true;
         }
-        slack.replacePropertyElement(PowerNodeState.TYPE, PowerNodeType.GENERATOR);
         if (limViolation) {
             logger.info("....generator limit violated at node " + slack.getIndex());
         } else {

@@ -20,7 +20,6 @@ package experiment;
 import replayer.BenchmarkLogReplayer;
 import agent.PowerCascadeAgent;
 import agents.time.TimeSteppingAgent;
-import java.io.File;
 import org.apache.log4j.Logger;
 import power.backend.InterpssFlowDomainAgent;
 import power.backend.MatpowerFlowDomainAgent;

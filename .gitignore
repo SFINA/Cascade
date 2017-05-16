@@ -7,4 +7,5 @@ _DS_Store
 **/dist/**
 **/peerlets-log/*/peer-*
 **/output/**/*.txt
+**/results/**
 /dist/

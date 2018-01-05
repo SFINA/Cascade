@@ -43,7 +43,7 @@ public class TestPowerCascadeAgent extends SimulatedExperiment{
     //Simulation Parameters
     private final static int bootstrapTime=2000;
     private final static int runTime=1000;
-    private final static int runDuration=5+1;
+    private final static int runDuration=46+4;
     private final static int N=1;
     
     public static void main(String[] args) {
@@ -59,7 +59,7 @@ public class TestPowerCascadeAgent extends SimulatedExperiment{
                 newPeer.addPeerlet(new PowerCascadeAgent(
                         experimentID,
                         relCapacityChange));
-                newPeer.addPeerlet(new MatpowerFlowDomainAgent());
+                newPeer.addPeerlet(new InterpssFlowDomainAgent());
                 newPeer.addPeerlet(new TimeSteppingAgent(
                         Time.inMilliseconds(bootstrapTime),
                         Time.inMilliseconds(runTime)));

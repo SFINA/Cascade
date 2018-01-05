@@ -133,9 +133,9 @@ public class PowerCascadeAgent extends CascadeAgent {
         // or for example to get all generators and the slack bus if it exists
         ArrayList<Node> generators = new ArrayList();
         Node slack = null;
-        boolean limViolation = true;
+        int limViolation = 1;
         boolean initGen = true;
-        while (limViolation) {
+        while (limViolation!=0) {
             if (generators.isEmpty() && initGen){
                 for (Node node : flowNetwork.getNodes()) {
                     if (node.getProperty(PowerNodeState.TYPE).equals(PowerNodeType.GENERATOR)) {
@@ -177,25 +177,32 @@ public class PowerCascadeAgent extends CascadeAgent {
                 // Without the following line big cases (like polish) even DC doesn't converge..
                 PowerFlowType flowType = (PowerFlowType)getFlowDomainAgent().getDomainParameters().get(PowerBackendParameter.FLOW_TYPE);
                 if (flowType.equals(PowerFlowType.DC)) {
-                    limViolation = false;
+                    limViolation = 1;
                 }
 
-                if (limViolation) {
+                if (limViolation!=0) {
                     converged = false;
                     if (generators.size() > 0) { // make next bus a slack
                         slack.replacePropertyElement(PowerNodeState.TYPE, PowerNodeType.GENERATOR);
-                        slack = generators.get(0);
+                        if (limViolation==1){
+                            slack = generators.get(0);
+                            generators.remove(0);
+                        }
+                        else{
+                            slack = generators.get(generators.size()-1);
+                            generators.remove(generators.size()-1);
+                        }
                         slack.replacePropertyElement(PowerNodeState.TYPE, PowerNodeType.SLACK_BUS);
                         logger.info("....Slack bus updated to: " + slack.getIndex());
-                        generators.remove(0);
                         initGen =false;
-                    } else {
+                    } 
+                    else {
                         logger.info("....no more generators");
                         for (Node node : flowNetwork.getNodes()) {
                                 node.replacePropertyElement(PowerNodeState.POWER_DEMAND_REAL, (Double) node.getProperty(PowerNodeState.POWER_DEMAND_REAL) * (1.0 - 0.05));
                                 node.replacePropertyElement(PowerNodeState.POWER_DEMAND_REACTIVE, (Double) node.getProperty(PowerNodeState.POWER_DEMAND_REACTIVE) * (1.0 - 0.05));
-                            }
-                        initGen =true;
+                    }
+                    initGen =true;
                         //return false; // all generator limits were hit -> blackout
                     }
                 }
@@ -210,17 +217,17 @@ public class PowerCascadeAgent extends CascadeAgent {
         return converged;
     }
 
-    private boolean GenerationBalancing(FlowNetwork flowNetwork, Node slack) {
-        boolean limViolation = false;
+    private int GenerationBalancing(FlowNetwork flowNetwork, Node slack) {
+        int limViolation = 0;
         if ((Double) slack.getProperty(PowerNodeState.POWER_GENERATION_REAL) > (Double) slack.getProperty(PowerNodeState.POWER_MAX_REAL)) {
             slack.replacePropertyElement(PowerNodeState.POWER_GENERATION_REAL, slack.getProperty(PowerNodeState.POWER_MAX_REAL));
-            limViolation = true;
+            limViolation = 1;
         }
         if ((Double) slack.getProperty(PowerNodeState.POWER_GENERATION_REAL) < ((Double) slack.getProperty(PowerNodeState.POWER_MIN_REAL))-1.0) {
             slack.replacePropertyElement(PowerNodeState.POWER_GENERATION_REAL, slack.getProperty(PowerNodeState.POWER_MIN_REAL));
-            limViolation = true;
+            limViolation = -1;
         }
-        if (limViolation) {
+        if (limViolation!=0) {
             logger.info("....generator limit violated at node " + slack.getIndex());
         } else {
             logger.info("....no generator limit violated");
@@ -228,18 +235,26 @@ public class PowerCascadeAgent extends CascadeAgent {
         return limViolation;
     }
 
-    private boolean loadShedding(FlowNetwork flowNetwork) {
+    private boolean loadShedding(FlowNetwork flowNetwork){
         boolean converged = false;
         int loadIter = 0;
         int maxLoadShedIterations = 15; // according to paper
         double loadReductionFactor = 0.05; // 5%, according to paper
-        while (!converged && loadIter < maxLoadShedIterations) {
+        while (!converged && loadIter < maxLoadShedIterations){
             logger.info("....Doing load shedding at iteration " + loadIter);
-            for (Node node : flowNetwork.getNodes()) {
-                node.replacePropertyElement(PowerNodeState.POWER_DEMAND_REAL, (Double) node.getProperty(PowerNodeState.POWER_DEMAND_REAL) * (1.0 - loadReductionFactor));
-                node.replacePropertyElement(PowerNodeState.POWER_DEMAND_REACTIVE, (Double) node.getProperty(PowerNodeState.POWER_DEMAND_REACTIVE) * (1.0 - loadReductionFactor));
+            for (Node node : flowNetwork.getNodes()){
+                node.replacePropertyElement(PowerNodeState.VOLTAGE_MAGNITUDE,(double) 1.0 );
+                node.replacePropertyElement(PowerNodeState.VOLTAGE_ANGLE,(double) 0.0 );
+                node.replacePropertyElement(PowerNodeState.POWER_DEMAND_REAL, (Double)node.getProperty(PowerNodeState.POWER_DEMAND_REAL)*(1.0-loadReductionFactor));
+                node.replacePropertyElement(PowerNodeState.POWER_DEMAND_REACTIVE, (Double)node.getProperty(PowerNodeState.POWER_DEMAND_REACTIVE)*(1.0-loadReductionFactor));
             }
             converged = getFlowDomainAgent().flowAnalysis(flowNetwork);
+            if (!converged){
+                for (Node node : flowNetwork.getNodes()){    
+                    node.replacePropertyElement(PowerNodeState.VOLTAGE_MAGNITUDE,(double) 1.0 );
+                    node.replacePropertyElement(PowerNodeState.VOLTAGE_ANGLE,(double) 0.0 );
+                }
+            }
             loadIter++;
         }
         return converged;
